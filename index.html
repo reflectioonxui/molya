@@ -348,6 +348,7 @@
   </style>
 </head>
 <body>
+  <audio id="bg-music" src="music.mp3" preload="auto" loop></audio>
   <div class="hearts">
     <span>♥</span><span>♥</span><span>♥</span><span>♥</span><span>♥</span>
   </div>
@@ -406,7 +407,7 @@
           </div>
           <div class="row">
             <span class="label">Дресс‑код:</span>
-            <span>Любое - ты всегда супер красивая</span>
+            <span>Любое — ты всегда супер красивая</span>
           </div>
           <div class="row">
             <span class="label">Настроение:</span>
@@ -418,7 +419,7 @@
           </div>
           <div class="row">
             <span class="label">Время:</span>
-            <span>Вечер - точное узнаешь в этот день :)</span>
+            <span>Вечер — точное узнаешь в этот день :)</span>
           </div>
         </div>
 
@@ -451,40 +452,78 @@
       </div>
     </div>
   </div>
-
   <script>
-    (function () {
-      const PASSWORD = "090925";
+  (function () {
+    const PASS = "090925"
+    const input = document["getElementById"]("password-input")
+    const button = document["getElementById"]("password-button")
+    const error = document["getElementById"]("password-error")
+    const passScreen = document["getElementById"]("password-screen")
+    const inviteScreen = document["getElementById"]("invite-screen")
+    const audio = document["getElementById"]("bg-music")
 
-      const input = document.getElementById("password-input");
-      const button = document.getElementById("password-button");
-      const error = document.getElementById("password-error");
-      const passScreen = document.getElementById("password-screen");
-      const inviteScreen = document.getElementById("invite-screen");
+    function trimValue(raw) {
+      return raw.replace(/^\s+|\s+$/g, "")
+    }
 
-      function unlock() {
-        const value = (input.value || "").trim();
-        if (value === PASSWORD) {
-          error.textContent = "";
-          passScreen.classList.add("hidden");
-          inviteScreen.classList.remove("hidden");
-          document.body.classList.add("invite-visible");
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        } else {
-          error.textContent = "Почти, но нет... попробуй ещё раз 💕";
-          passScreen.classList.add("shake");
-          setTimeout(() => passScreen.classList.remove("shake"), 450);
-        }
+    function startMusic() {
+      if (!audio) {
+        return
       }
 
-      button.addEventListener("click", unlock);
-      input.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") {
-          unlock();
-        }
-      });
-    })();
-  </script>
+      let current = 0
+      audio["volume"] = 0
+
+      function fade() {
+        const step = 1 / 20   // шаг громкости
+        const id = setInterval(function () {
+          current = current + step
+          if (current >= 1) {
+            current = 1
+            clearInterval(id)
+          }
+          audio["volume"] = current
+        }, 250)               // интервал в миллисекундах
+      }
+
+      const playPromise = audio["play"]()
+      if (playPromise && playPromise["then"]) {
+        playPromise["then"](function () {
+          fade()
+        })["catch"](function () {})
+      } else {
+        fade()
+      }
+    }
+
+    function unlock() {
+      const raw = input["value"] || ""
+      const value = trimValue(raw)
+
+      if (value === PASS) {
+        error["textContent"] = ""
+        passScreen["classList"]["add"]("hidden")
+        inviteScreen["classList"]["remove"]("hidden")
+        document["body"]["classList"]["add"]("invite-visible")
+        window["scrollTo"]({ top: 0, behavior: "smooth" })
+        startMusic()
+      } else {
+        error["textContent"] = "Почти, но нет! попробуй ещё раз 💕"
+        passScreen["classList"]["add"]("shake")
+        setTimeout(function () {
+          passScreen["classList"]["remove"]("shake")
+        }, 450)
+      }
+    }
+
+    button["addEventListener"]("click", unlock)
+    input["addEventListener"]("keydown", function (e) {
+      if (e["key"] === "Enter") {
+        unlock()
+      }
+    })
+  })()
+</script>
+
 </body>
 </html>
-
