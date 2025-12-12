@@ -419,8 +419,24 @@
           </div>
           <div class="row">
             <span class="label">Время:</span>
-            <span>Вечер - точное узнаешь в этот день :)</span>
+            <span>19:00</span>
           </div>
+        </div>
+
+
+        <div class="tasks" id="countdown-block">
+          <p><b>До нашего новогоднего момента осталось:</b></p>
+          <p>
+            <b id="cd-d">—</b> дней
+            <b id="cd-h">—</b> часов
+            <b id="cd-m">—</b> минут
+            <b id="cd-s">—</b> секунд
+          </p>
+        </div>
+
+        <div class="tasks" id="letter-block">
+          <p><b>Письмо на снежинке</b> <span class="tiny" id="typing-status"></span></p>
+          <p id="typewriter"></p>
         </div>
 
         <hr class="divider">
@@ -434,6 +450,47 @@
           Если ты видишь эту страничку, значит кто‑то очень сильно ждёт нашей встречи
           и заранее улыбается, представляя этот вечер рядом с тобой 💗
         </p>
+
+
+        <div class="tasks" id="gift-block">
+          <p><b>🎁 Новогодний сюрприз</b></p>
+          <p class="tiny">Нажми — и я покажу маленькое обещание на наш вечер.</p>
+          <button id="gift-btn" class="btn" type="button">Открыть</button>
+
+          <div id="surprise" class="hidden">
+            <p><b id="surprise-title"></b></p>
+            <p id="surprise-text"></p>
+            <p class="tiny">Можно нажимать снова — сюрпризы меняются 😉</p>
+          </div>
+        </div>
+
+        <div class="tasks" id="checklist-block">
+          <p><b>✨ Наш мини‑план</b></p>
+
+          <div class="row">
+            <input type="checkbox" data-key="walk">
+            <span>
+              Прогулка под огоньками<br>
+              <span class="tiny">10 минут или 2 часа — как захочется.</span>
+            </span>
+          </div>
+
+          <div class="row">
+            <input type="checkbox" data-key="toast">
+            <span>
+              Тост за нас<br>
+              <span class="tiny">за всё хорошее, что уже есть и что ещё будет.</span>
+            </span>
+          </div>
+
+          <div class="row">
+            <input type="checkbox" data-key="hug">
+            <span>
+              Самые тёплые объятия<br>
+              <span class="tiny">не обсуждается 💗</span>
+            </span>
+          </div>
+        </div>
 
         <div class="photos">
 
@@ -455,77 +512,273 @@
   <script>
   (function () {
     const PASS = "090925"
-    const input = document["getElementById"]("password-input")
-    const button = document["getElementById"]("password-button")
-    const error = document["getElementById"]("password-error")
-    const passScreen = document["getElementById"]("password-screen")
-    const inviteScreen = document["getElementById"]("invite-screen")
-    const audio = document["getElementById"]("bg-music")
+    const EVENT_ISO = "2025-12-12T19:00:00"
+
+    const LETTER_TEXT =
+      "Спасибо большое что ты есть в моей жизни,\n" +
+      "больше смеха, больше прогулок под огоньками и больше «давай ещё 5 минут».\n\n" +
+      "Люблю тебя💗\n"
+
+    const SURPRISES = [
+      { title: "Горячий шоколад ☕", text: "С меня - горячий шоколад (или что ты захочешь), чтобы было совсем по‑зимнему." },
+      { title: "Прогулка под огоньками ✨", text: "Найдём самые красивые гирлянды и сделаем пару милых фото (и пару совсем несерьёзных 😄)." },
+      { title: "Тёплые руки 🤍", text: "Если вдруг будет холодно - у меня есть план: держать тебя за руку и не отпускать." },
+      { title: "Тост за нас 🥂", text: "За то, чтобы у нас было больше поводов улыбаться - вместе." },
+      { title: "Песня вечера 🎶", text: "Выбираешь ты. И она будет ассоциироваться у меня с тобой." }
+    ]
+
+    const STORAGE_KEY = "ny_romantic_checklist_v1"
+
+    const input = document.getElementById("password-input")
+    const button = document.getElementById("password-button")
+    const error = document.getElementById("password-error")
+    const passScreen = document.getElementById("password-screen")
+    const inviteScreen = document.getElementById("invite-screen")
+    const audio = document.getElementById("bg-music")
+
+    const cdD = document.getElementById("cd-d")
+    const cdH = document.getElementById("cd-h")
+    const cdM = document.getElementById("cd-m")
+    const cdS = document.getElementById("cd-s")
+
+    const typeEl = document.getElementById("typewriter")
+    const typingStatus = document.getElementById("typing-status")
+
+    const giftBtn = document.getElementById("gift-btn")
+    const surpriseBox = document.getElementById("surprise")
+    const surpriseTitle = document.getElementById("surprise-title")
+    const surpriseText = document.getElementById("surprise-text")
+
+    let unlocked = false
+    let countdownTimerId = null
 
     function trimValue(raw) {
-      return raw.replace(/^\s+|\s+$/g, "")
+      return String(raw || "").replace(/^\s+|\s+$/g, "")
     }
 
+    // Музыка (как в твоём файле — с плавным появлением громкости)
     function startMusic() {
       if (!audio) {
         return
       }
 
       let current = 0
-      audio["volume"] = 0
+      audio.volume = 0
 
       function fade() {
-        const step = 1 / 20   // шаг громкости
+        const step = 1 / 20
         const id = setInterval(function () {
           current = current + step
           if (current >= 1) {
             current = 1
             clearInterval(id)
           }
-          audio["volume"] = current
-        }, 250)               // интервал в миллисекундах
+          audio.volume = current
+        }, 250)
       }
 
-      const playPromise = audio["play"]()
-      if (playPromise && playPromise["then"]) {
-        playPromise["then"](function () {
+      const playPromise = audio.play()
+      if (playPromise && playPromise.then) {
+        playPromise.then(function () {
           fade()
-        })["catch"](function () {})
+        }).catch(function () {})
       } else {
         fade()
       }
     }
 
-    function unlock() {
-      const raw = input["value"] || ""
-      const value = trimValue(raw)
+    // ===== Таймер =====
+    function pad2(n) {
+      n = Math.max(0, n)
+      return (n < 10 ? "0" : "") + String(n)
+    }
 
-      if (value === PASS) {
-        error["textContent"] = ""
-        passScreen["classList"]["add"]("hidden")
-        inviteScreen["classList"]["remove"]("hidden")
-        document["body"]["classList"]["add"]("invite-visible")
-        window["scrollTo"]({ top: 0, behavior: "smooth" })
-        startMusic()
-      } else {
-        error["textContent"] = "Почти, но нет! попробуй ещё раз 💕"
-        passScreen["classList"]["add"]("shake")
-        setTimeout(function () {
-          passScreen["classList"]["remove"]("shake")
-        }, 450)
+    function updateCountdown() {
+      if (!cdD || !cdH || !cdM || !cdS) {
+        return
+      }
+
+      const target = new Date(EVENT_ISO)
+      const now = new Date()
+      let diff = target.getTime() - now.getTime()
+
+      if (isNaN(target.getTime())) {
+        cdD.textContent = "—"
+        cdH.textContent = "—"
+        cdM.textContent = "—"
+        cdS.textContent = "—"
+        return
+      }
+
+      if (diff <= 0) {
+        cdD.textContent = "0"
+        cdH.textContent = "00"
+        cdM.textContent = "00"
+        cdS.textContent = "00"
+        return
+      }
+
+      const sec = Math.floor(diff / 1000)
+      const d = Math.floor(sec / (3600 * 24))
+      const h = Math.floor((sec % (3600 * 24)) / 3600)
+      const m = Math.floor((sec % 3600) / 60)
+      const s = Math.floor(sec % 60)
+
+      cdD.textContent = String(d)
+      cdH.textContent = pad2(h)
+      cdM.textContent = pad2(m)
+      cdS.textContent = pad2(s)
+    }
+
+    function startCountdown() {
+      updateCountdown()
+      if (countdownTimerId) {
+        clearInterval(countdownTimerId)
+      }
+      countdownTimerId = setInterval(updateCountdown, 1000)
+    }
+
+    // ===== Письмо (typewriter) =====
+    function typewriter(text) {
+      if (!typeEl) {
+        return
+      }
+
+      // очистка
+      while (typeEl.firstChild) {
+        typeEl.removeChild(typeEl.firstChild)
+      }
+
+      if (typingStatus) {
+        typingStatus.textContent = ""
+      }
+
+      let i = 0
+      const id = setInterval(function () {
+        const ch = text.charAt(i)
+
+        if (ch === "\n") {
+          typeEl.appendChild(document.createElement("br"))
+        } else {
+          typeEl.appendChild(document.createTextNode(ch))
+        }
+
+        i = i + 1
+
+        if (i >= text.length) {
+          clearInterval(id)
+          if (typingStatus) {
+            typingStatus.textContent = ""
+          }
+        }
+      }, 22)
+    }
+
+    // ===== Сюрприз =====
+    function openGift() {
+      if (!surpriseBox || !surpriseTitle || !surpriseText) {
+        return
+      }
+
+      const item = SURPRISES[Math.floor(Math.random() * SURPRISES.length)]
+      surpriseTitle.textContent = item.title
+      surpriseText.textContent = item.text
+      surpriseBox.classList.remove("hidden")
+    }
+
+    if (giftBtn) {
+      giftBtn.addEventListener("click", openGift)
+    }
+
+    // ===== Чеклист (с сохранением) =====
+    function loadChecklist() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY)
+        if (!raw) {
+          return {}
+        }
+        return JSON.parse(raw) || {}
+      } catch (e) {
+        return {}
       }
     }
 
-    button["addEventListener"]("click", unlock)
-    input["addEventListener"]("keydown", function (e) {
-      if (e["key"] === "Enter") {
-        unlock()
+    function saveChecklist(obj) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(obj))
+      } catch (e) {}
+    }
+
+    function initChecklist() {
+      const saved = loadChecklist()
+      const boxes = document.querySelectorAll('input[type="checkbox"][data-key]')
+
+      boxes.forEach(function (cb) {
+        const key = cb.getAttribute("data-key")
+        cb.checked = !!saved[key]
+
+        cb.addEventListener("change", function () {
+          const now = loadChecklist()
+          now[key] = cb.checked
+          saveChecklist(now)
+        })
+      })
+    }
+
+    // ===== Разблокировка =====
+    function unlock() {
+      if (unlocked) {
+        return
       }
-    })
+
+      const raw = (input && input.value) ? input.value : ""
+      const value = trimValue(raw)
+
+      if (value === PASS) {
+        unlocked = true
+
+        if (error) {
+          error.textContent = ""
+        }
+        if (passScreen) {
+          passScreen.classList.add("hidden")
+        }
+        if (inviteScreen) {
+          inviteScreen.classList.remove("hidden")
+        }
+
+        document.body.classList.add("invite-visible")
+        window.scrollTo({ top: 0, behavior: "smooth" })
+
+        startMusic()
+        startCountdown()
+        typewriter(LETTER_TEXT)
+        initChecklist()
+      } else {
+        if (error) {
+          error.textContent = "Почти, но нет! попробуй ещё раз 💕"
+        }
+        if (passScreen) {
+          passScreen.classList.add("shake")
+          setTimeout(function () {
+            passScreen.classList.remove("shake")
+          }, 450)
+        }
+      }
+    }
+
+    if (button) {
+      button.addEventListener("click", unlock)
+    }
+    if (input) {
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          unlock()
+        }
+      })
+    }
   })()
 </script>
 
 </body>
 </html>
-
-
